@@ -701,6 +701,13 @@ class FileOprationApp:
             self.watch_bar, text="Pilih Folder Pantau", command=self._choose_watch_folder
         ).pack(side=tk.LEFT)
 
+        self.var_delete_source = tk.BooleanVar(value=False)
+        self._create_check_toggle(
+            card_files,
+            "Hapus file asli setelah berhasil di-upscale",
+            self.var_delete_source,
+        ).pack(anchor=tk.W, pady=(4, 0))
+
         card_mode = tk.Frame(self.frame_upscale, highlightthickness=1, padx=12, pady=8)
         card_mode.pack(fill=tk.X)
         self.up_cards.append(card_mode)
@@ -1361,6 +1368,7 @@ class FileOprationApp:
         self.var_tile.set(TILE_REVERSE.get(cfg.tile_size, list(TILE_LABELS.keys())[0]))
         self.var_quality.set(QUALITY_REVERSE.get(cfg.crf, list(QUALITY_LABELS.keys())[0]))
         self.var_skip_existing.set(cfg.skip_existing)
+        self.var_delete_source.set(cfg.delete_source)
         self.var_output_mode.set(
             OUTPUT_MODE_REVERSE.get(cfg.output_mode, list(OUTPUT_MODE_LABELS.keys())[0])
         )
@@ -1380,6 +1388,7 @@ class FileOprationApp:
             crf=QUALITY_LABELS.get(self.var_quality.get(), 18),
             tile_size=TILE_LABELS.get(self.var_tile.get(), 0),
             skip_existing=self.var_skip_existing.get(),
+            delete_source=self.var_delete_source.get(),
             output_mode=OUTPUT_MODE_LABELS.get(self.var_output_mode.get(), "same_suffix"),
             output_dir=self.var_output_dir.get().strip(),
             watch_folder=self.selected_folder,
@@ -1574,6 +1583,15 @@ class FileOprationApp:
         shutil.move(str(write_path), str(final_path))
         if config.output_mode == "overwrite" and in_file.resolve() != final_path.resolve() and in_file.exists():
             in_file.unlink(missing_ok=True)
+        elif (
+            config.delete_source
+            and config.output_mode != "overwrite"
+            and final_path.is_file()
+            and final_path.stat().st_size > 0
+            and in_file.resolve() != final_path.resolve()
+            and in_file.exists()
+        ):
+            in_file.unlink(missing_ok=True)
 
     def _start_upscale_batch(self) -> None:
         if not self.media_files:
@@ -1704,6 +1722,8 @@ class FileOprationApp:
                         self._process_single_media(
                             tools, in_file, write_path, final_path, config, "Otomatis: "
                         )
+                        if config.delete_source or config.output_mode == "overwrite":
+                            seen.discard(in_file.resolve())
                         seen.add(final_path.resolve())
                         self.ui_queue.put(("row_status", (in_file, "Selesai ✅")))
                         self.ui_queue.put(("log", f"✅ Selesai: {final_path.name}"))

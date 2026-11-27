@@ -31,6 +31,7 @@ class UpscaleConfig:
     crf: int = 18  # 18 = Kualitas Tinggi, 21 = Seimbang
     tile_size: int = 0  # 0 = Auto, 128/200 = Hemat VRAM (anti-crash)
     skip_existing: bool = True
+    delete_source: bool = False
     output_mode: str = "same_suffix"  # "same_suffix" | "overwrite" | "custom_folder"
     output_dir: str = ""
     watch_folder: str = ""
