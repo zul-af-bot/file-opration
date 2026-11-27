@@ -7,18 +7,17 @@ echo.
 
 cd /d "%~dp0"
 
-set "REPO_URL=https://zul-af-bot@github.com/zul-af-bot/file-opration.git"
-set "ZIP_URL=https://api.github.com/repos/zul-af-bot/file-opration/zipball/main"
-set "TOKEN_FILE=%~dp0core\.gh_token"
+set "REPO_URL=https://github.com/zul-af-bot/file-opration.git"
+set "ZIP_URL=https://github.com/zul-af-bot/file-opration/archive/refs/heads/main.zip"
 
-:: 1. Sinkronisasi menggunakan Git jika terpasang
+:: 1. Sinkronisasi menggunakan Git jika terpasang (tanpa login untuk repo Public)
 where git >nul 2>nul
 if %ERRORLEVEL% EQU 0 (
     if not exist ".git" (
         echo [INFO] Menginisialisasi Git untuk update otomatis...
         git init
         git remote add origin %REPO_URL%
-        git -c credential.helper=manager fetch origin main
+        git -c credential.helper= -c credential.interactive=never fetch origin main
         if %ERRORLEVEL% EQU 0 (
             git reset --hard origin/main
             git branch -M main
@@ -26,7 +25,7 @@ if %ERRORLEVEL% EQU 0 (
         )
     ) else (
         git remote set-url origin %REPO_URL% 2>nul
-        git -c credential.helper=manager fetch origin main
+        git -c credential.helper= -c credential.interactive=never fetch origin main
         if %ERRORLEVEL% EQU 0 (
             git reset --hard origin/main
             goto SELESAI
@@ -34,24 +33,14 @@ if %ERRORLEVEL% EQU 0 (
     )
 )
 
-:: 2. Fallback: Download arsip ZIP via PowerShell jika Git belum ada / gagal
+:: 2. Fallback: Download arsip ZIP langsung via PowerShell
 echo.
 echo [INFO] Mengunduh pembaruan langsung via PowerShell...
 powershell -NoProfile -Command ^
-  "$tokenFile = '%TOKEN_FILE%';" ^
-  "$headers = @{ 'User-Agent' = 'FileOprationUpdater/1.0' };" ^
-  "if (Test-Path $tokenFile) { $pat = (Get-Content $tokenFile -Raw).Trim(); if ($pat) { $headers['Authorization'] = 'Bearer ' + $pat } }" ^
   "$zip = Join-Path $env:TEMP 'file_opration_update.zip';" ^
   "$extract = Join-Path $env:TEMP 'file_opration_extract';" ^
   "Remove-Item -Recurse -Force $extract -ErrorAction SilentlyContinue;" ^
-  "try { Invoke-WebRequest -Uri '%ZIP_URL%' -Headers $headers -OutFile $zip -ErrorAction Stop } catch {" ^
-  "  $pat = Read-Host 'Repo bersifat Private. Masukkan GitHub Token (PAT) Anda';" ^
-  "  if (-not $pat) { exit 1 };" ^
-  "  New-Item -ItemType Directory -Force -Path (Split-Path $tokenFile) | Out-Null;" ^
-  "  Set-Content -Path $tokenFile -Value $pat -NoNewline;" ^
-  "  $headers['Authorization'] = 'Bearer ' + $pat;" ^
-  "  Invoke-WebRequest -Uri '%ZIP_URL%' -Headers $headers -OutFile $zip -ErrorAction Stop" ^
-  "};" ^
+  "Invoke-WebRequest -Uri '%ZIP_URL%' -Headers @{ 'User-Agent' = 'FileOprationUpdater/1.0' } -OutFile $zip -ErrorAction Stop;" ^
   "Expand-Archive -Path $zip -DestinationPath $extract -Force;" ^
   "$root = Get-ChildItem -Path $extract -Directory | Select-Object -First 1;" ^
   "Copy-Item -Path ($root.FullName + '\*') -Destination (Get-Location) -Recurse -Force;" ^
@@ -63,7 +52,7 @@ if %ERRORLEVEL% NEQ 0 (
     echo.
     echo ========================================================
     echo   [PERHATIAN] Gagal mengunduh pembaruan dari GitHub!
-    echo   Pastikan koneksi internet aktif dan Anda punya akses ke repo.
+    echo   Pastikan koneksi internet aktif dan repo sudah Public.
     echo ========================================================
     echo.
     pause
