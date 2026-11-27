@@ -1,6 +1,8 @@
 import os
 import queue
 import re
+import shutil
+import tempfile
 import threading
 import time
 import tkinter as tk
@@ -1388,17 +1390,19 @@ class FileOprationApp:
     ) -> tuple[Path, Path]:
         is_img = is_image_file(in_file)
         out_ext = in_file.suffix if is_img else ".mp4"
+        tmp_dir = Path(tempfile.gettempdir()) / "file_opration_tmp"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        tmp_path = tmp_dir / f".__tmp_{in_file.stem}_{os.getpid()}{out_ext}"
+
         if config.output_mode == "overwrite":
             final_path = in_file.with_suffix(out_ext)
-            tmp_path = in_file.parent / f".__tmp_{in_file.stem}_1080p{out_ext}"
             return tmp_path, final_path
         if config.output_mode == "custom_folder" and config.output_dir:
             out_dir = Path(config.output_dir)
-            out_dir.mkdir(parents=True, exist_ok=True)
             final_path = out_dir / f"{in_file.stem}_1080p{out_ext}"
-            return final_path, final_path
+            return tmp_path, final_path
         final_path = in_file.parent / f"{in_file.stem}_1080p{out_ext}"
-        return final_path, final_path
+        return tmp_path, final_path
 
     def _on_mode_change(self) -> None:
         state = "readonly" if self.var_mode.get() == "ai" else "disabled"
@@ -1564,10 +1568,12 @@ class FileOprationApp:
                     cancel_check=lambda: self.cancel_requested,
                 )
 
-        if config.output_mode == "overwrite":
-            os.replace(write_path, final_path)
-            if in_file.resolve() != final_path.resolve() and in_file.exists():
-                in_file.unlink(missing_ok=True)
+        final_path.parent.mkdir(parents=True, exist_ok=True)
+        if config.output_mode == "overwrite" and final_path.exists():
+            final_path.unlink(missing_ok=True)
+        shutil.move(str(write_path), str(final_path))
+        if config.output_mode == "overwrite" and in_file.resolve() != final_path.resolve() and in_file.exists():
+            in_file.unlink(missing_ok=True)
 
     def _start_upscale_batch(self) -> None:
         if not self.media_files:
@@ -1613,7 +1619,7 @@ class FileOprationApp:
                         self.ui_queue.put(("row_status", (in_file, "Dibatalkan ⏹️")))
                         break
                     except Exception as exc:
-                        if config.output_mode == "overwrite" and write_path.exists():
+                        if write_path.exists():
                             write_path.unlink(missing_ok=True)
                         err += 1
                         self.ui_queue.put(("row_status", (in_file, "Gagal ❌")))
@@ -1707,7 +1713,7 @@ class FileOprationApp:
                         self.ui_queue.put(("row_status", (in_file, "Dibatalkan ⏹️")))
                         break
                     except Exception as exc:
-                        if config.output_mode == "overwrite" and write_path.exists():
+                        if write_path.exists():
                             write_path.unlink(missing_ok=True)
                         self.ui_queue.put(("row_status", (in_file, "Gagal ❌")))
                         self.ui_queue.put(("log", f"❌ Gagal ({in_file.name}): {exc}"))
