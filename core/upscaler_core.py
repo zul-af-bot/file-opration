@@ -236,12 +236,21 @@ def is_image_file(path: Path) -> bool:
     return path.suffix.lower() in IMAGE_EXTENSIONS
 
 
-def collect_videos(folder: Path, ignore_upscaled: bool = True) -> list[Path]:
+def collect_videos(
+    folder: Path, ignore_upscaled: bool = True, media_filter: str = "all"
+) -> list[Path]:
     if not folder.is_dir():
         return []
+    if media_filter == "video":
+        allowed = VIDEO_EXTENSIONS
+    elif media_filter == "image":
+        allowed = IMAGE_EXTENSIONS
+    else:
+        allowed = MEDIA_EXTENSIONS
+
     result = []
     for p in sorted(folder.iterdir()):
-        if not p.is_file() or p.suffix.lower() not in MEDIA_EXTENSIONS:
+        if not p.is_file() or p.suffix.lower() not in allowed:
             continue
         if ignore_upscaled and p.stem.endswith("_1080p"):
             continue

@@ -53,6 +53,12 @@ QUALITY_LABELS = {
 }
 QUALITY_REVERSE = {v: k for k, v in QUALITY_LABELS.items()}
 
+MEDIA_FILTER_LABELS = {
+    "Foto & Video": "all",
+    "Hanya Video": "video",
+    "Hanya Foto": "image",
+}
+
 OUTPUT_MODE_LABELS = {
     "Tambah _1080p di folder yang sama (contoh: file_1080p)": "same_suffix",
     "Timpa / Ganti file asli langsung (Overwrite)": "overwrite",
@@ -612,7 +618,18 @@ class FileOprationApp:
         ).pack(side=tk.LEFT, padx=(0, 6))
         ttk.Button(
             btn_bar, text="Bersihkan", command=self._clear_files
-        ).pack(side=tk.LEFT)
+        ).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Label(btn_bar, text="Filter:").pack(side=tk.LEFT, padx=(0, 4))
+        self.var_up_filter = tk.StringVar(value=list(MEDIA_FILTER_LABELS.keys())[0])
+        cb_up_f = ttk.Combobox(
+            btn_bar,
+            textvariable=self.var_up_filter,
+            state="readonly",
+            width=14,
+            values=list(MEDIA_FILTER_LABELS.keys()),
+        )
+        cb_up_f.pack(side=tk.LEFT)
+        cb_up_f.bind("<<ComboboxSelected>>", lambda _e: self._on_up_filter_change())
 
         tw = tk.Frame(card_files)
         tw.pack(fill=tk.BOTH, expand=True, pady=(0, 6))
@@ -1401,6 +1418,12 @@ class FileOprationApp:
             self.media_tree_map[path] = iid
         self.lbl_file_count.configure(text=f"{len(self.media_files)} file")
 
+    def _on_up_filter_change(self) -> None:
+        if self.selected_folder and Path(self.selected_folder).is_dir() and not self.is_running:
+            mfilter = MEDIA_FILTER_LABELS.get(self.var_up_filter.get(), "all")
+            self.media_files = collect_videos(Path(self.selected_folder), media_filter=mfilter)
+            self._rebuild_media_tree()
+
     def _choose_input_folder(self) -> None:
         folder = filedialog.askdirectory(title="Pilih Folder Foto / Video")
         if not folder:
@@ -1408,7 +1431,8 @@ class FileOprationApp:
         folder_path = Path(folder)
         self.selected_folder = str(folder_path)
         self._update_watch_label()
-        self.media_files = collect_videos(folder_path)
+        mfilter = MEDIA_FILTER_LABELS.get(self.var_up_filter.get(), "all")
+        self.media_files = collect_videos(folder_path, media_filter=mfilter)
         if not self.var_output_dir.get().strip():
             self.var_output_dir.set(str(folder_path / "Hasil_1080p"))
         self._rebuild_media_tree()
@@ -1630,7 +1654,8 @@ class FileOprationApp:
         def scanner() -> None:
             self.ui_queue.put(("log", f"👁️ Memantau folder: {watch_dir}"))
             while not self.cancel_requested:
-                for in_file in collect_videos(watch_dir):
+                mfilter = MEDIA_FILTER_LABELS.get(self.var_up_filter.get(), "all")
+                for in_file in collect_videos(watch_dir, media_filter=mfilter):
                     if self.cancel_requested:
                         break
                     if in_file.name.startswith(".__tmp_"):
