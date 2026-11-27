@@ -18,7 +18,7 @@ if %ERRORLEVEL% EQU 0 (
         echo [INFO] Menginisialisasi Git untuk update otomatis...
         git init
         git remote add origin %REPO_URL%
-        git fetch origin main
+        git -c credential.helper=manager fetch origin main
         if %ERRORLEVEL% EQU 0 (
             git reset --hard origin/main
             git branch -M main
@@ -26,7 +26,7 @@ if %ERRORLEVEL% EQU 0 (
         )
     ) else (
         git remote set-url origin %REPO_URL% 2>nul
-        git fetch origin main
+        git -c credential.helper=manager fetch origin main
         if %ERRORLEVEL% EQU 0 (
             git reset --hard origin/main
             goto SELESAI
