@@ -1340,6 +1340,7 @@ class FileOprationApp:
         if not folder:
             return
         self.selected_folder = folder
+        self.var_output_dir.set(str(Path(folder) / "1080p"))
         self._update_watch_label()
         self.lbl_status.configure(text=f"Folder pantau dipilih: {Path(folder).name}")
 
@@ -1433,8 +1434,7 @@ class FileOprationApp:
         self._update_watch_label()
         mfilter = MEDIA_FILTER_LABELS.get(self.var_up_filter.get(), "all")
         self.media_files = collect_videos(folder_path, media_filter=mfilter)
-        if not self.var_output_dir.get().strip():
-            self.var_output_dir.set(str(folder_path / "Hasil_1080p"))
+        self.var_output_dir.set(str(folder_path / "1080p"))
         self._rebuild_media_tree()
         self.lbl_status.configure(
             text=f"Folder dipilih: {folder_path.name} ({len(self.media_files)} file)"
@@ -1461,7 +1461,7 @@ class FileOprationApp:
                 self.selected_folder = str(self.media_files[0].parent)
                 self._update_watch_label()
             if not self.var_output_dir.get().strip():
-                self.var_output_dir.set(str(self.media_files[0].parent / "Hasil_1080p"))
+                self.var_output_dir.set(str(self.media_files[0].parent / "1080p"))
         self._rebuild_media_tree()
         self.lbl_status.configure(text=f"{len(self.media_files)} file siap di-upscale.")
 
