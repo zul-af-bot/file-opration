@@ -7,6 +7,7 @@ from typing import Callable, Optional
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v"}
+IGNORED_TEMP_EXTS = {".crdownload", ".part", ".tmp", ".opdownload", ".download"}
 
 
 @dataclass
@@ -50,7 +51,9 @@ def collect_matching_files(folder: Path, config: FileOpConfig) -> list[Path]:
     for p in sorted(folder.iterdir()):
         if not p.is_file():
             continue
-        if p.name.startswith(".__tmp_"):
+        if p.name.startswith((".__tmp_", ".", "~$")):
+            continue
+        if p.suffix.lower() in IGNORED_TEMP_EXTS:
             continue
         if allowed is not None and p.suffix.lower() not in allowed:
             continue
@@ -160,10 +163,12 @@ def is_file_stable(path: Path, wait_seconds: float = 0.8) -> bool:
         if not path.is_file():
             return False
         s1 = path.stat().st_size
+        if s1 <= 0:
+            return False
         time.sleep(wait_seconds)
         if not path.is_file():
             return False
         s2 = path.stat().st_size
-        return s1 == s2 and s2 >= 0
+        return s1 == s2 and s2 > 0
     except OSError:
         return False

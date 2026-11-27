@@ -1051,6 +1051,8 @@ class FileOprationApp:
                 self.ui_queue.put(("log", f"👁️ Memantau pindah file: {src_dir}"))
                 try:
                     while not self.cancel_requested:
+                        # Remove paths that were moved out so newly downloaded files with the same name are detected
+                        seen = {p for p in seen if p.exists()}
                         for fpath in collect_matching_files(src_dir, cfg):
                             if self.cancel_requested:
                                 break
@@ -1063,10 +1065,13 @@ class FileOprationApp:
                                 tag, dest_p = process_file_operation(
                                     fpath, dst_dir, cfg, 1, lambda s: self.ui_queue.put(("status", s))
                                 )
+                                if cfg.action == "move" and tag == "done":
+                                    seen.discard(res)
                                 st = "Dilewati ⏭️" if tag == "skipped" else "Selesai ✅"
                                 self.ui_queue.put(("mv_row_status", (fpath, st)))
                                 self.ui_queue.put(("log", f"✅ {fpath.name} → {dest_p}"))
                             except Exception as exc:
+                                seen.discard(res)
                                 self.ui_queue.put(("mv_row_status", (fpath, "Gagal ❌")))
                                 self.ui_queue.put(("log", f"❌ {fpath.name}: {exc}"))
 
@@ -1839,14 +1844,18 @@ class FileOprationApp:
                     self.prog_bar["value"] = payload
                 elif kind == "mv_add_row":
                     p_obj = payload
+                    try:
+                        sz = f"{p_obj.stat().st_size / (1024 * 1024):.1f} MB"
+                    except OSError:
+                        sz = "-"
                     if p_obj not in self.move_tree_map:
                         self.move_files.append(p_obj)
-                        try:
-                            sz = f"{p_obj.stat().st_size / (1024 * 1024):.1f} MB"
-                        except OSError:
-                            sz = "-"
                         iid = self.mv_tree.insert("", tk.END, values=(p_obj.name, sz, "Menunggu"))
                         self.move_tree_map[p_obj] = iid
+                    else:
+                        iid = self.move_tree_map[p_obj]
+                        if self.mv_tree.exists(iid):
+                            self.mv_tree.item(iid, values=(p_obj.name, sz, "Menunggu"))
                 elif kind == "mv_row_status":
                     p_obj, st = payload
                     iid = self.move_tree_map.get(p_obj)
