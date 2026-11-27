@@ -8,6 +8,7 @@ from typing import Callable, Optional
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v"}
 IGNORED_TEMP_EXTS = {".crdownload", ".part", ".tmp", ".opdownload", ".download"}
+IGNORED_FILENAMES = {"desktop.ini", "thumbs.db"}
 
 
 @dataclass
@@ -51,7 +52,7 @@ def collect_matching_files(folder: Path, config: FileOpConfig) -> list[Path]:
     for p in sorted(folder.iterdir()):
         if not p.is_file():
             continue
-        if p.name.startswith((".__tmp_", ".", "~$")):
+        if p.name.startswith((".__tmp_", ".", "~$")) or p.name.lower() in IGNORED_FILENAMES:
             continue
         if p.suffix.lower() in IGNORED_TEMP_EXTS:
             continue
